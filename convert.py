@@ -20,9 +20,13 @@ parser.add_argument("-o",
                     type=float,
                     help="Increases notes per second with higher numbers. range 0.01 to 0.99",
                     default=0.70)
+parser.add_argument("-m",
+                    type=int,
+                    help="How much to add to the multiplier when the minimum bin size is reached",
+                    default=8)
 parser.add_argument("--threads",
                     type=int,
-                    help="Increases notes per second with higher numbers. range 0.01 to 0.99",
+                    help="How many threads the script uses to process. More threads use more ram.",
                     default=(cpu_count() / 1.5))
 
 args = parser.parse_args()
@@ -32,6 +36,7 @@ else: file = input("File name: ")
 
 minimum_bin_size = args.r
 overlap = args.o
+multiplier = args.m
 threads = args.threads
 
 file_list = file.split(".")
@@ -71,7 +76,7 @@ def process(note):
 
     binSize = round(samplerate / frequency_from_key(note) * mult)
     while binSize < minimum_bin_size:
-        mult += 8
+        mult += multiplier
         binSize = round(samplerate / frequency_from_key(note) * mult)
 
     f, t, spectrogramL = spectrogram(dataL, samplerate, window=get_window("hann", binSize), nperseg=binSize, noverlap=round(binSize*overlap), mode='magnitude')
