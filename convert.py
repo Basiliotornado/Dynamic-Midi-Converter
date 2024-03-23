@@ -123,7 +123,7 @@ def process(note):
 
 if __name__ == "__main__":
 
-    with Pool(12) as p:
+    with Pool(cpu_count() // 1.5) as p:
         tracks = p.map(process, range(127))
 
     tracks[0].insert(0, mido.Message('control_change', channel = 0, control = 10, value = 0))
