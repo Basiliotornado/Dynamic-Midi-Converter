@@ -6,6 +6,7 @@ import argparse
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 from subprocess import run
+
 parser = argparse.ArgumentParser(description='Generate a MIDI file from WAV')
 
 parser.add_argument("i",
@@ -120,14 +121,15 @@ def process(note):
     print(f"Note: {note} done")
     return track
 
-p = Pool(12)
+if __name__ == "__main__":
 
-tracks = p.map(process, range(127))
+    with Pool(12) as p:
+        tracks = p.map(process, range(127))
 
-tracks[0].insert(0, mido.Message('control_change', channel = 0, control = 10, value = 0))
-tracks[0].insert(0, mido.Message('control_change', channel = 1, control = 10, value = 127))
+    tracks[0].insert(0, mido.Message('control_change', channel = 0, control = 10, value = 0))
+    tracks[0].insert(0, mido.Message('control_change', channel = 1, control = 10, value = 127))
 
-midi.tracks = tracks
-print("\nExporting")
-midi.save(file_name + ".mid")
-print("\nDone!")
+    midi.tracks = tracks
+    print("\nExporting")
+    midi.save(file_name + ".mid")
+    print("\nDone!")
