@@ -20,7 +20,10 @@ parser.add_argument("-o",
                     type=float,
                     help="Increases notes per second with higher numbers. range 0.01 to 0.99",
                     default=0.70)
-
+parser.add_argument("--threads",
+                    type=int,
+                    help="Increases notes per second with higher numbers. range 0.01 to 0.99",
+                    default=(cpu_count() / 1.5))
 
 args = parser.parse_args()
 
@@ -29,6 +32,7 @@ else: file = input("File name: ")
 
 minimum_bin_size = args.r
 overlap = args.o
+threads = args.threads
 
 file_list = file.split(".")
 file_name = "".join(file_list[:-1])
@@ -51,7 +55,6 @@ else:
 if len(data) == 0:
     quit("Invalid input!")
 
-
 dataR = data[:,1]
 dataL = data[:,0]
 
@@ -61,9 +64,6 @@ def key_from_frequency(freq):
 
 def frequency_from_key(key):
     return 2 ** ((key - 69) / 12) * 440
-
-large = 0
-mult = 1
 
 def process(note):
     mult = 1
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     for i in range(127):
         midi.tracks.append(mido.MidiTrack())
 
-    with Pool(round(cpu_count() / 1.5)) as p:
+    with Pool(round(threads)) as p:
         tracks = p.map(process, range(127))
 
     tracks[0].insert(0, mido.Message('control_change', channel = 0, control = 10, value = 0))
