@@ -71,7 +71,7 @@ def frequency_from_key(key):
     return 2 ** ((key - 69) / 12) * 440
 
 def process(note):
-    mult = 1
+    mult = multiplier if multiplier > 1 else 1
     track = []
 
     binSize = round(samplerate / frequency_from_key(note) * mult)
