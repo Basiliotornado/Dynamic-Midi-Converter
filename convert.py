@@ -62,13 +62,6 @@ def key_from_frequency(freq):
 def frequency_from_key(key):
     return 2 ** ((key - 69) / 12) * 440
 
-midi = mido.MidiFile(type = 1)
-
-midi.ticks_per_beat = 30000
-
-for i in range(127):
-    midi.tracks.append(mido.MidiTrack())
-
 large = 0
 mult = 1
 
@@ -122,10 +115,18 @@ def process(note):
 
         track.append(mido.Message('note_off', channel = 0, note=note, time=wait))
         track.append(mido.Message('note_off', channel = 1, note=note))
+
     print(f"Note: {note} done")
     return track
 
 if __name__ == "__main__":
+    
+    midi = mido.MidiFile(type = 1)
+
+    midi.ticks_per_beat = 30000
+
+    for i in range(127):
+        midi.tracks.append(mido.MidiTrack())
 
     with Pool(round(cpu_count() / 1.5)) as p:
         tracks = p.map(process, range(127))
