@@ -48,6 +48,10 @@ if file_list[-1].lower() != "wav":
 else:
     samplerate, data = read(f"{file_name}.wav")
 
+if len(data) == 0:
+    quit("Invalid input!")
+
+
 dataR = data[:,1]
 dataL = data[:,0]
 
