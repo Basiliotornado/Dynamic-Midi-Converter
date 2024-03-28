@@ -23,7 +23,7 @@ parser.add_argument("-o",
 parser.add_argument("-t",
                     type=int,
                     help="Number of midi tracks.",
-                    default=32)
+                    default=31)
 parser.add_argument("-m",
                     type=int,
                     help="How much to add to the multiplier when the minimum bin size is reached",
@@ -90,11 +90,14 @@ def generate_spectrograms(note):
     R = [spectrogramR[i][mult] for i in range(len(spectrogramR))]
 
     dt = t[1] - t[0]
-    print(f"Spectrogram {note} done")
-    return {"f":f, "dt":dt, "L":L, "R":R}
 
-def get_velocity(amp,mult):
-    vel = int((amp ** 0.5 / 3564.1987)*12800 * mult)
+    largest = max([max(L),max(R)])
+
+    print(f"Spectrogram {note} done")
+    return {"f":f, "dt":dt, "max":largest, "L":L, "R":R}
+
+def get_velocity(amp,mult,largest):
+    vel = int((amp ** 0.5 / largest)*12800 * mult)
 
     if vel < 0:   vel = 0
     if vel > 127: vel = 127
@@ -121,15 +124,19 @@ if __name__ == "__main__":
     with Pool(round(cpu_count() / 1.5)) as p:
         spectrograms = p.map(generate_spectrograms, range(note_count))
 
+    largest = 0
     prev_track = []
     for i in range(len(spectrograms)):
         delta_times[i] = spectrograms[i]["dt"]
 
+        if spectrograms[i]["max"] > largest:
+            largest = spectrograms[i]["max"]
+
         note_mapped = i / 128
         note_mult = (note_mapped ** 1.8 * (3 - 2 * note_mapped)) / 1.25 + 0.2
 
-        velL = get_velocity(spectrograms[i]["L"].pop(0), note_mult)
-        velR = get_velocity(spectrograms[i]["R"].pop(0), note_mult)
+        velL = get_velocity(spectrograms[i]["L"].pop(0), note_mult, 3564.1987)
+        velR = get_velocity(spectrograms[i]["R"].pop(0), note_mult, 3564.1987) #
 
         track = int(velR/(96/tracks) + 1)
         if track > tracks-1: track = tracks-1
@@ -167,10 +174,10 @@ if __name__ == "__main__":
         note_mapped = note / 128
         note_mult = (note_mapped ** 1.8 * (3 - 2 * note_mapped)) / 1.25 + 0.2
 
-        velL = get_velocity(spectrograms[note]["L"].pop(0), note_mult)
-        velR = get_velocity(spectrograms[note]["R"].pop(0), note_mult)
+        velL = get_velocity(spectrograms[note]["L"].pop(0), note_mult, largest)
+        velR = get_velocity(spectrograms[note]["R"].pop(0), note_mult, largest)
 
-        track = int(velR/(96/tracks) + 1)
+        track = int(velL/(64/tracks) + 1)
         if track > tracks-1: track = tracks-1
 
         midi.tracks[0].append(mido.Message('note_off', channel = 1, note=note, time=time))
