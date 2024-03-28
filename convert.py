@@ -98,12 +98,18 @@ def process(note):
 
     timer = 0
 
+    note_mult = (-(note / 128 * 0.75 - 1) ** 2 + 1.06)
+    note_mult = ((note / 128 / 1.3) ** 2) + 0.4
+
+    note_mapped = note / 128
+    note_mult = (note_mapped ** 1.8 * (3 - 2 * note_mapped)) / 1.25 + 0.2
+
+    #note_mult += ((sin(note_mapped * 7 -1.7) + 1) / 10)
+    #if note_mult < 0.4: note_mult = 0.4
+
     for i in range(len(spectrogramL)):
         wait = int(t[i]*60000 - timer)
         timer += wait
-
-        note_mult = (-(note / 128 * 0.75 - 1) ** 2 + 1.06)
-        if note_mult < 0.4: note_mult = 0.4
 
         velL = int((spectrogramL[i][mult] ** 0.5 / 3564.1987)*12800 * note_mult)#(note/128) ** 0.75)
 
@@ -128,6 +134,8 @@ if __name__ == "__main__":
     
     midi = mido.MidiFile(type = 1)
 
+
+
     midi.ticks_per_beat = 30000
 
     for i in range(127):
@@ -135,6 +143,9 @@ if __name__ == "__main__":
 
     with Pool(round(threads)) as p:
         tracks = p.map(process, range(127))
+
+
+    tracks[0].insert(0, mido.Message('control_change', control = 121))
 
     tracks[0].insert(0, mido.Message('control_change', channel = 0, control = 10, value = 0))
     tracks[0].insert(0, mido.Message('control_change', channel = 1, control = 10, value = 127))
