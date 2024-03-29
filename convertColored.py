@@ -4,7 +4,6 @@ from numpy import rot90, flipud, frombuffer
 import mido
 import argparse
 from multiprocessing import Pool, cpu_count
-from tqdm import tqdm
 from subprocess import run
 
 parser = argparse.ArgumentParser(description='Generate a MIDI file from WAV')
