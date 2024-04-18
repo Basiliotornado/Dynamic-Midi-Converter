@@ -31,6 +31,10 @@ parser.add_argument("-n",
                     type=int,
                     help="Note count.",
                     default=128)
+parser.add_argument("--threads",
+                    type=int,
+                    help="How many threads the script uses to process. More threads use more ram.",
+                    default=(cpu_count() / 1.5))
 
 args = parser.parse_args()
 
@@ -42,6 +46,7 @@ overlap = args.o
 tracks = args.t
 multiplier = args.m
 note_count = args.n
+threads = args.threads
 
 file_list = file.split(".")
 file_name = "".join(file_list[:-1])
@@ -120,7 +125,7 @@ if __name__ == "__main__":
     delta_times = [[0] for i in range(note_count)]
 
 
-    with Pool(round(cpu_count() / 1.5)) as p:
+    with Pool(round(threads)) as p:
         spectrograms = p.map(generate_spectrograms, range(note_count))
 
     largest = 0
@@ -176,7 +181,7 @@ if __name__ == "__main__":
         velL = get_velocity(spectrograms[note]["L"].pop(0), note_mult, largest)
         velR = get_velocity(spectrograms[note]["R"].pop(0), note_mult, largest)
 
-        track = int(velL/(64/tracks) + 1)
+        track = int(velL/(82/tracks) + 1)
         if track > tracks-1: track = tracks-1
 
         midi.tracks[0].append(mido.Message('note_off', channel = 1, note=note, time=time))
