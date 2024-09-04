@@ -115,14 +115,8 @@ def generate_spectrograms(note):
     dt, spectrogramL = spectrogram(dataL, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
     __, spectrogramR = spectrogram(dataR, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
 
-    L = array([spectrogramL[i][mult] for i in range(len(spectrogramL))])
-    R = array([spectrogramR[i][mult] for i in range(len(spectrogramR))])
-
-    L /= max(L)
-    R /= max(R)
-
-    L = list(L)
-    R = list(R)
+    L = [spectrogramL[i][mult] for i in range(len(spectrogramL))]
+    R = [spectrogramR[i][mult] for i in range(len(spectrogramR))]
 
     largest = max([max(L),max(R)])
 
@@ -167,7 +161,7 @@ if __name__ == "__main__":
             largest = spectrograms[i]["max"]
 
     for spectrogram in range(len(spectrograms)):
-        for i in range(len(spectrograms[spectrogram])):
+        for i in range(len(spectrograms[spectrogram]['L'])):
             spectrograms[spectrogram]['L'][i] /= largest
             spectrograms[spectrogram]['R'][i] /= largest
 
