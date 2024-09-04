@@ -1,6 +1,7 @@
 from scipy.signal import spectrogram, get_window
 from scipy.io.wavfile import read
-from numpy import rot90, flipud, frombuffer
+import scipy.fft
+from numpy import rot90, flipud, frombuffer, absolute, array
 import mido
 import argparse
 from multiprocessing import Pool, cpu_count
@@ -14,11 +15,11 @@ parser.add_argument("i",
 parser.add_argument("-r",
                     type=int,
                     help="Minimum bin size",
-                    default=4096)
+                    default=2048)
 parser.add_argument("-o",
                     type=float,
                     help="Overlap between fft bins. Increases notes per second with higher numbers. range 0.0 to 0.99.",
-                    default=0.70)
+                    default=0.00)
 parser.add_argument("-t",
                     type=int,
                     help="Number of midi tracks.",
@@ -35,6 +36,14 @@ parser.add_argument("--threads",
                     type=int,
                     help="How many threads the script uses to process. More threads use more ram.",
                     default=(cpu_count() / 1.5))
+parser.add_argument("--ppqn",
+                    type=int,
+                    help="PPQN of the midi file.",
+                    default=30000)
+parser.add_argument("--bpm",
+                    type=int,
+                    help="Bpm of the midi",
+                    default=120)
 
 args = parser.parse_args()
 
@@ -47,6 +56,9 @@ tracks = args.t
 multiplier = args.m
 note_count = args.n
 threads = args.threads
+ppqn = args.ppqn
+bpm = args.bpm
+
 
 file_list = file.split(".")
 file_name = "".join(file_list[:-1])
@@ -75,33 +87,50 @@ dataL = data[:,0]
 def frequency_from_key(key):
     return 2 ** ((key - 69) / 12) * 440
 
+def spectrogram(data, samplerate, window, nperseg, overlap):
+
+    step = round(nperseg - nperseg * overlap)
+    spec = []
+    for i in range(0, len(data), step):
+        sample = data[i:i+nperseg]
+        if len(sample) != nperseg: continue
+
+        sample = sample * window
+        fft = absolute(scipy.fft.fft(sample))
+        fft = fft[:round(len(fft) / 2)]
+        spec.append(fft / nperseg)
+
+    dt = step / samplerate
+    return  dt, spec
+
 def generate_spectrograms(note):
-    mult = multiplier if multiplier > 1 else 1#multiplier if multiplier > 1 else 1
+    mult = multiplier
     track = []
 
     binSize = round(samplerate / frequency_from_key(note) * mult)
     while binSize < minimum_bin_size:
-        mult += 8
+        mult += multiplier
         binSize = round(samplerate / frequency_from_key(note) * mult)
 
-    f, t, spectrogramL = spectrogram(dataL, samplerate, window=get_window("hann", binSize), nperseg=binSize, noverlap=round(binSize*overlap), mode='magnitude')
-    _, _, spectrogramR = spectrogram(dataR, samplerate, window=get_window("hann", binSize), nperseg=binSize, noverlap=round(binSize*overlap), mode='magnitude')
+    dt, spectrogramL = spectrogram(dataL, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
+    __, spectrogramR = spectrogram(dataR, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
 
-    spectrogramL = flipud(rot90(spectrogramL))
-    spectrogramR = flipud(rot90(spectrogramR))
+    L = array([spectrogramL[i][mult] for i in range(len(spectrogramL))])
+    R = array([spectrogramR[i][mult] for i in range(len(spectrogramR))])
 
-    L = [spectrogramL[i][mult] for i in range(len(spectrogramL))]
-    R = [spectrogramR[i][mult] for i in range(len(spectrogramR))]
+    L /= max(L)
+    R /= max(R)
 
-    dt = t[1] - t[0]
+    L = list(L)
+    R = list(R)
 
     largest = max([max(L),max(R)])
 
     print(f"Spectrogram {note} done")
-    return {"f":f, "dt":dt, "max":largest, "L":L, "R":R}
+    return {"dt":dt, "max":largest, "L":L, "R":R}
 
-def get_velocity(amp,mult,largest):
-    vel = int((amp ** 0.5 / largest)*12800 * mult)
+def get_velocity(amp):
+    vel = int((amp ** 0.5) * 128)
 
     if vel < 0:   vel = 0
     if vel > 127: vel = 127
@@ -109,14 +138,15 @@ def get_velocity(amp,mult,largest):
     return vel
 
 if __name__ == "__main__":
-    
     midi = mido.MidiFile(type = 1)
 
-    midi.ticks_per_beat = 30000
+    midi.ticks_per_beat = ppqn
 
     for i in range(tracks):
         midi.tracks.append(mido.MidiTrack())
-    
+
+    midi.tracks[0].append(mido.MetaMessage('set_tempo', tempo = mido.bpm2tempo(bpm)))
+
     midi.tracks[0].append(mido.Message('control_change', control = 121))
 
     midi.tracks[0].append(mido.Message('control_change', channel = 0, control = 10, value = 0))
@@ -129,27 +159,19 @@ if __name__ == "__main__":
         spectrograms = p.map(generate_spectrograms, range(note_count))
 
     largest = 0
-    prev_track = []
+    prev_track = [0 for i in range(note_count)]
     for i in range(len(spectrograms)):
         delta_times[i] = spectrograms[i]["dt"]
 
         if spectrograms[i]["max"] > largest:
             largest = spectrograms[i]["max"]
 
-        note_mapped = i / 128
-        note_mult = (note_mapped ** 1.8 * (3 - 2 * note_mapped)) / 1.25 + 0.2
+    for spectrogram in range(len(spectrograms)):
+        for i in range(len(spectrograms[spectrogram])):
+            spectrograms[spectrogram]['L'][i] /= largest
+            spectrograms[spectrogram]['R'][i] /= largest
 
-        velL = get_velocity(spectrograms[i]["L"].pop(0), note_mult, 3564.1987)
-        velR = get_velocity(spectrograms[i]["R"].pop(0), note_mult, 3564.1987) #
-
-        track = int(velR/(96/tracks) + 1)
-        if track > tracks-1: track = tracks-1
-
-        prev_track.append(track)
-        midi.tracks[track].append(mido.Message('note_on', channel = 0, note=i, velocity=velL))
-        midi.tracks[0].append(mido.Message('note_on', channel = 1, note=i, velocity=velR))
-
-    next_times = [delta_times[i] for i in range(len(delta_times))]
+    next_times = [0 for i in range(len(delta_times))]
     track_offset = [0 for i in range(tracks)]
     done = [0 for i in range(note_count)]
 
@@ -167,19 +189,14 @@ if __name__ == "__main__":
         if len(spectrograms[note]["L"]) == 0:
             next_times[note] += 9999
             done[note] = 1
-            print(note)
+            print(f"{note} Done")
             spectrograms[note]["L"].append(0)
             spectrograms[note]["R"].append(0) # make sure both channels finish
 
-        time = int(time*60000)
-        note_mult = (-(note / 128 * 0.75 - 1) ** 2 + 1.06)
-        if note_mult < 0.4: note_mult = 0.4
+        time = round(time * ppqn * (bpm / 60))
 
-        note_mapped = note / 128
-        note_mult = (note_mapped ** 1.8 * (3 - 2 * note_mapped)) / 1.25 + 0.2
-
-        velL = get_velocity(spectrograms[note]["L"].pop(0), note_mult, largest)
-        velR = get_velocity(spectrograms[note]["R"].pop(0), note_mult, largest)
+        velL = get_velocity(spectrograms[note]["L"].pop(0))
+        velR = get_velocity(spectrograms[note]["R"].pop(0))
 
         track = int(velL/(82/tracks) + 1)
         if track > tracks-1: track = tracks-1
@@ -199,9 +216,6 @@ if __name__ == "__main__":
 
         prev_track[note] = track
         prev_note = note
-
-
-
 
     print("\nExporting")
     midi.save(file_name + ".mid")
