@@ -6,6 +6,7 @@ import mido
 import argparse
 from multiprocessing import Pool, cpu_count
 from subprocess import run
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='Generate a MIDI file from WAV')
 
@@ -133,7 +134,6 @@ def generate_spectrograms(note):
 
     largest = max([max(L),max(R)])
 
-    print(f"Spectrogram {note} done")
     return {"dt":dt, "max":largest, "L":L, "R":R}
 
 def get_velocity(amp):
@@ -185,16 +185,20 @@ if __name__ == "__main__":
 
 
     with Pool(round(threads)) as p:
-        spectrograms = p.map(generate_spectrograms, range(note_count))
+        spectrograms = list(tqdm(p.imap(generate_spectrograms, range(note_count)), desc='Generating spectrograms', total=note_count))
 
+    total_notes = 0
     largest = 0
     for i in range(len(spectrograms)):
-        delta_times[i] = spectrograms[i]["dt"]
+        spectrogram = spectrograms[i]
+        delta_times[i] = spectrogram["dt"]
 
-        if spectrograms[i]["max"] > largest:
-            largest = spectrograms[i]["max"]
+        total_notes += len(spectrogram['L'])
 
-    for spectrogram in range(len(spectrograms)):
+        if spectrogram["max"] > largest:
+            largest = spectrogram["max"]
+
+    for spectrogram in tqdm(range(len(spectrograms)),desc='Normalizing spectrogram'):
         for i in range(len(spectrograms[spectrogram]['L'])):
             spectrograms[spectrogram]['L'][i] /= largest
             spectrograms[spectrogram]['R'][i] /= largest
@@ -203,6 +207,7 @@ if __name__ == "__main__":
     track_offset = [0 for i in range(tracks)]
     done = [0 for i in range(note_count)]
 
+    progress_bar = tqdm(total=total_notes)
     while sum(done) < note_count:
 
         time = min(next_times)
@@ -216,7 +221,6 @@ if __name__ == "__main__":
         if len(spectrograms[note]["L"]) == 0:
             next_times[note] += 9999
             done[note] = 1
-            print(f"{note} Done")
             spectrograms[note]["L"].append(0)
             spectrograms[note]["R"].append(0) # make sure both channels finish
 
@@ -234,13 +238,11 @@ if __name__ == "__main__":
         midi.tracks[0].append(mido.Message('note_on', channel = 1, note=note, velocity=velR))
         midi.tracks[track].append(mido.Message('note_on', channel = 0, note=note, velocity=velL))
 
-
-
-
         for i in range(tracks):
             track_offset[i] += time
         track_offset[track] = 0
 
+        progress_bar.update()
     print("\nExporting")
     midi.save(file_name + ".mid")
     print("\nDone!")
