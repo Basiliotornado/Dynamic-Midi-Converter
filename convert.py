@@ -199,7 +199,7 @@ if __name__ == "__main__":
             spectrograms[spectrogram]['L'][i] /= largest
             spectrograms[spectrogram]['R'][i] /= largest
 
-    next_times = [i / 2 for i in delta_times]
+    next_times = [(i / (1 - overlap)) / 2 for i in delta_times]
     track_offset = [0 for i in range(tracks)]
     done = [0 for i in range(note_count)]
 
