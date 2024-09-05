@@ -23,7 +23,7 @@ parser.add_argument("-m",
 parser.add_argument("-o",
                     type=float,
                     help="Overlap between fft bins. Increases notes per second with higher numbers. range 0.0 to 0.99.",
-                    default=0.00)
+                    default=0.50)
 parser.add_argument("-t",
                     type=int,
                     help="Number of midi tracks.",
