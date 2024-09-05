@@ -18,7 +18,7 @@ parser.add_argument("-b",
                     default=128)
 parser.add_argument("-m",
                     type=int,
-                    help="m in y = mx+b. Works like minimum bin size.",
+                    help="m in y = mx+b.",
                     default=32)
 parser.add_argument("-o",
                     type=float,
