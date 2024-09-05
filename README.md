@@ -2,6 +2,8 @@
 
 Install: `pip install -r requirements.txt`
 
+Tip: if your midi has significant bass (something like bad apple) i'd reccomend adding `--mult 32`. This will clear up the bass at the expense of drums.
+
 ```
 usage: convert.py i [options]
 
