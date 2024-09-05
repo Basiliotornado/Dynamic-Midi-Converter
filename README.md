@@ -1,4 +1,7 @@
 # Dynamic-Midi-Converter
+
+Install: `pip install -r requirements.txt`
+
 ```
 usage: convert.py i [options]
 
