@@ -181,14 +181,12 @@ if __name__ == "__main__":
     midi.tracks[0].append(mido.Message('control_change', channel = 0, control = 10, value = 0))
     midi.tracks[0].append(mido.Message('control_change', channel = 1, control = 10, value = 127))
 
-    delta_times = [[0] for i in range(note_count)]
-
-
     with Pool(round(threads)) as p:
         spectrograms = list(tqdm(p.imap(generate_spectrograms, range(note_count)), desc='Generating spectrograms', total=note_count))
 
     total_notes = 0
     largest = 0
+    delta_times = [0] * note_count
     for i in range(len(spectrograms)):
         spectrogram = spectrograms[i]
         delta_times[i] = spectrogram["dt"]
@@ -204,8 +202,9 @@ if __name__ == "__main__":
             spectrograms[spectrogram]['R'][i] /= largest
 
     next_times = [(i / (1 - overlap)) / 2 for i in delta_times]
-    track_offset = [0 for i in range(tracks)]
-    done = [0 for i in range(note_count)]
+    track_offset = [0] * tracks
+    done = [0] * note_count
+    note_index = [0] * note_count
 
     progress_bar = tqdm(total=total_notes)
     while sum(done) < note_count:
@@ -218,16 +217,16 @@ if __name__ == "__main__":
 
         next_times[note] = delta_times[note]
 
-        if len(spectrograms[note]["L"]) == 0:
+        if note_index[note] >= len(spectrograms[note]["L"]):
             next_times[note] += 9999
             done[note] = 1
             spectrograms[note]["L"].append(0)
-            spectrograms[note]["R"].append(0) # make sure both channels finish
+            spectrograms[note]["R"].append(0) # make sure all notes finish
 
         time = round(time * ppqn * (bpm / 60))
 
-        velL = get_velocity(spectrograms[note]["L"].pop(0))
-        velR = get_velocity(spectrograms[note]["R"].pop(0))
+        velL = get_velocity(spectrograms[note]["L"][note_index[note]])
+        velR = get_velocity(spectrograms[note]["R"][note_index[note]])
 
         track = int(velL/(82/tracks) + 1)
         if track > tracks-1: track = tracks-1
@@ -241,7 +240,7 @@ if __name__ == "__main__":
         for i in range(tracks):
             track_offset[i] += time
         track_offset[track] = 0
-
+        note_index[note] += 1
         progress_bar.update()
     print("\nExporting")
     midi.save(file_name + ".mid")
