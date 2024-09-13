@@ -32,7 +32,7 @@ parser.add_argument("-t",
 parser.add_argument("--mult",
                     type=int,
                     help="How much to add to the multiplier when the minimum bin size is reached",
-                    default=16)
+                    default=24)
 parser.add_argument("-n",
                     type=int,
                     help="Note count.",
