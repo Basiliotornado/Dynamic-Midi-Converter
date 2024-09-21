@@ -206,7 +206,7 @@ if __name__ == "__main__":
     done = [0] * note_count
     note_index = [0] * note_count
 
-    progress_bar = tqdm(total=total_notes)
+    progress_bar = tqdm(total=total_notes,desc='Placing notes')
     while sum(done) < note_count:
 
         time = min(next_times)
