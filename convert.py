@@ -40,7 +40,7 @@ parser.add_argument("-n",
 parser.add_argument("--threads",
                     type=int,
                     help="How many threads the script uses to process. More threads use more ram.",
-                    default=(cpu_count() / 1.5))
+                    default=(cpu_count() / 2))
 parser.add_argument("--ppqn",
                     type=int,
                     help="PPQN of the midi file.",
