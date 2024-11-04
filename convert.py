@@ -144,6 +144,9 @@ def get_velocity(amp):
 
     return vel
 
+def get_time(time):
+    return round(time * ppqn * (bpm / 60))
+
 if visualize_mininum_bin_size:
     from matplotlib import pyplot as plt
 
@@ -165,13 +168,12 @@ if visualize_mininum_bin_size:
     plt.plot(debug_graph_target)
     plt.show()
 
-
 if __name__ == "__main__":
     midi = mido.MidiFile(type = 1)
 
     midi.ticks_per_beat = ppqn
 
-    for i in range(tracks):
+    for i in range(tracks + 1):
         midi.tracks.append(mido.MidiTrack())
 
     midi.tracks[0].append(mido.MetaMessage('set_tempo', tempo = mido.bpm2tempo(bpm)))
@@ -182,16 +184,14 @@ if __name__ == "__main__":
     midi.tracks[0].append(mido.Message('control_change', channel = 1, control = 10, value = 127))
 
     with Pool(round(threads)) as p:
-        spectrograms = list(tqdm(p.imap(generate_spectrograms, range(note_count)), desc='Generating spectrograms', total=note_count))
+        spectrograms = list(tqdm(p.imap(generate_spectrograms, range(note_count)), desc='Generating spectrograms', total=note_count, smoothing=0))
 
-    total_notes = 0
     largest = 0
     delta_times = [0] * note_count
     for i in range(len(spectrograms)):
         spectrogram = spectrograms[i]
         delta_times[i] = spectrogram["dt"]
 
-        total_notes += len(spectrogram['L'])
 
         if spectrogram["max"] > largest:
             largest = spectrogram["max"]
@@ -206,42 +206,46 @@ if __name__ == "__main__":
     done = [0] * note_count
     note_index = [0] * note_count
 
-    progress_bar = tqdm(total=total_notes,desc='Placing notes')
-    while sum(done) < note_count:
+    note_data = [[] for _ in range(tracks + 1)]
 
-        time = min(next_times)
-        note = next_times.index(time)
+    for note in range(note_count):
+        time = delta_times[note]
+        total_time = next_times[note]
 
-        for i in range(len(next_times)):
-            next_times[i] -= time
+        spectrogram = spectrograms[note]
+        for i in range(len(spectrogram['L'])):
+            vel_l = get_velocity(spectrogram['L'][i])
+            vel_r = get_velocity(spectrogram['R'][i])
 
-        next_times[note] = delta_times[note]
+            track = int(vel_l/(82/tracks)) + 1
+            if track > tracks: track = tracks
 
-        if note_index[note] >= len(spectrograms[note]["L"]):
-            next_times[note] += 9999
-            done[note] = 1
-            spectrograms[note]["L"].append(0)
-            spectrograms[note]["R"].append(0) # make sure all notes finish
+            if vel_l > 0:
+                note_data[track].append({'velocity':vel_l, 'note': note, 'time': total_time})
+                note_data[track].append({'velocity':0,     'note': note, 'time': total_time + time})
+            if vel_r > 0:
+                note_data[0].append({'velocity': vel_r, 'note': note, 'time': total_time})
+                note_data[0].append({'velocity': 0,     'note': note, 'time': total_time + time})
 
-        time = round(time * ppqn * (bpm / 60))
+            total_time += time
 
-        velL = get_velocity(spectrograms[note]["L"][note_index[note]])
-        velR = get_velocity(spectrograms[note]["R"][note_index[note]])
+    note_data = [sorted(i, key=lambda x: x['time']) for i in note_data] # thanks pon (idea stolen)
 
-        track = int(velL/(82/tracks) + 1)
-        if track > tracks-1: track = tracks-1
+    for track in tqdm(range(len(note_data)), desc="Placing notes"):
+        channel = 1 if track == 0 else 0
 
-        midi.tracks[0].append(mido.Message('note_off', channel = 1, note=note, time=time))
-        midi.tracks[track].append(mido.Message('note_off', channel = 0, note=note, time=time + track_offset[track]))
+        total_time = 0
+        t = midi.tracks[track]
+        for i in note_data[track]:
+            time = get_time(i['time']) - total_time
+            if i['velocity'] <= 0:
+                t.append(mido.Message('note_off', channel=channel,                         note=i['note'], time=time))
+            else:
+                t.append(mido.Message('note_on',  channel=channel, velocity=i['velocity'], note=i['note'], time=time))
 
-        midi.tracks[0].append(mido.Message('note_on', channel = 1, note=note, velocity=velR))
-        midi.tracks[track].append(mido.Message('note_on', channel = 0, note=note, velocity=velL))
+            total_time += time
+        midi.tracks[track] = t
 
-        for i in range(tracks):
-            track_offset[i] += time
-        track_offset[track] = 0
-        note_index[note] += 1
-        progress_bar.update()
     print("\nExporting")
     midi.save(file_name + ".mid")
     print("\nDone!")
