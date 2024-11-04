@@ -1,4 +1,4 @@
-from scipy.signal import spectrogram, get_window
+from scipy.signal import get_window
 from scipy.io.wavfile import read
 import scipy.fft
 from numpy import rot90, flipud, frombuffer, absolute, array
