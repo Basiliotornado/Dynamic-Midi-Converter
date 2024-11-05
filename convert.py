@@ -1,7 +1,7 @@
 from scipy.signal import get_window
 from scipy.io.wavfile import read
 import scipy.fft
-from numpy import rot90, flipud, frombuffer, absolute, array
+from numpy import rot90, flipud, frombuffer, absolute, array, exp, clip
 import mido
 import argparse
 from multiprocessing import Pool, cpu_count
@@ -33,6 +33,14 @@ parser.add_argument("--mult",
                     type=int,
                     help="How much to add to the multiplier when the minimum bin size is reached",
                     default=24)
+parser.add_argument("--do-odd",
+                    type=bool,
+                    help="If an extra spectrogram using an odd function as a window should be calculated and subtracted from the main spectrogram. (slow)",
+                    default=True)
+parser.add_argument("--odd-amp",
+                    type=float,
+                    help="Amplitude of the odd function windowed spectrogram.",
+                    default=0.166)
 parser.add_argument("-n",
                     type=int,
                     help="Note count.",
@@ -68,6 +76,8 @@ note_count = args.n
 threads = args.threads
 ppqn = args.ppqn
 bpm = args.bpm
+do_odd = args.do_odd
+odd_amp= args.odd_amp
 visualize_mininum_bin_size = args.visualize # lmao
 
 file_list = file.split(".")
@@ -116,6 +126,16 @@ def spectrogram(data, samplerate, window, nperseg, overlap):
     dt = step / samplerate
     return dt, array(spec)
 
+
+def odd_symmetric(length):
+    b = 2.5
+    out = []
+    for t in range(length,-length,-2):
+        t /= length
+        out.append(t * exp(-b**2 * t**2))
+
+    return array(out) / max(out)
+
 def generate_spectrograms(note):
     mult = multiplier
     track = []
@@ -129,8 +149,20 @@ def generate_spectrograms(note):
     dt, spectrogramL = spectrogram(dataL, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
     __, spectrogramR = spectrogram(dataR, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
 
+    if do_odd:
+        w = odd_symmetric(binSize) * odd_amp
+
+        dt, spectrogramL1 = spectrogram(dataL, samplerate, window=w, nperseg=binSize, overlap=overlap)
+        __, spectrogramR1 = spectrogram(dataR, samplerate, window=w, nperseg=binSize, overlap=overlap)
+
+        spectrogramL -= spectrogramL1
+        spectrogramR -= spectrogramR1
+
     L = spectrogramL[:,mult]
     R = spectrogramR[:,mult]
+
+    L = clip(L, 0, None)
+    R = clip(R, 0, None)
 
     largest = max([max(L),max(R)])
 
@@ -167,6 +199,7 @@ if visualize_mininum_bin_size:
     plt.plot(debug_graph_actual)
     plt.plot(debug_graph_target)
     plt.show()
+
 
 if __name__ == "__main__":
     midi = mido.MidiFile(type = 1)
@@ -245,6 +278,7 @@ if __name__ == "__main__":
 
             total_time += time
         midi.tracks[track] = t
+
 
     print("\nExporting")
     midi.save(file_name + ".mid")
