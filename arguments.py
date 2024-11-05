@@ -25,10 +25,9 @@ parser.add_argument("--mult",
                     type=int,
                     help="How much to add to the multiplier when the minimum bin size is reached",
                     default=24)
-parser.add_argument("--do-odd",
-                    type=bool,
-                    help="If an extra spectrogram using an odd function as a window should be calculated and subtracted from the main spectrogram. (slow)",
-                    default=True)
+parser.add_argument("--no-odd",
+                    action=argparse.BooleanOptionalAction,
+                    help="If an extra spectrogram using an odd function as a window should be calculated and subtracted from the main spectrogram. (slow)",)
 parser.add_argument("--odd-amp",
                     type=float,
                     help="Amplitude of the odd function windowed spectrogram.",
@@ -56,6 +55,7 @@ parser.add_argument("--visualize",
 
 args = parser.parse_args()
 
+
 if args.i: file = args.i
 else: file = input("File name: ")
 
@@ -68,6 +68,6 @@ note_count = args.n
 threads = args.threads
 ppqn = args.ppqn
 bpm = args.bpm
-do_odd = args.do_odd
-odd_amp= args.odd_amp
+do_odd = not args.no_odd == False
+odd_amp = args.odd_amp
 visualize_mininum_bin_size = args.visualize # lmao
