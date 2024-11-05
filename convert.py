@@ -111,10 +111,10 @@ def spectrogram(data, samplerate, window, nperseg, overlap):
         sample = sample * window
         fft = absolute(scipy.fft.fft(sample))
         fft = fft[:round(len(fft) / 2)]
-        spec.append(fft / nperseg)
+        spec.append((fft / nperseg).astype('float32'))
 
     dt = step / samplerate
-    return  dt, spec
+    return dt, array(spec)
 
 def generate_spectrograms(note):
     mult = multiplier
@@ -129,8 +129,8 @@ def generate_spectrograms(note):
     dt, spectrogramL = spectrogram(dataL, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
     __, spectrogramR = spectrogram(dataR, samplerate, window=get_window("hann", binSize), nperseg=binSize, overlap=overlap)
 
-    L = [spectrogramL[i][mult] for i in range(len(spectrogramL))]
-    R = [spectrogramR[i][mult] for i in range(len(spectrogramR))]
+    L = spectrogramL[:,mult]
+    R = spectrogramR[:,mult]
 
     largest = max([max(L),max(R)])
 
