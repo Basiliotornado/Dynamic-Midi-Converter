@@ -49,9 +49,8 @@ parser.add_argument("--bpm",
                     help="Bpm of the midi",
                     default=120)
 parser.add_argument("--visualize",
-                    type=bool,
-                    help="Visualize the minimum bin size.",
-                    default=False)
+                    action=argparse.BooleanOptionalAction,
+                    help="Visualize the minimum bin size.")
 
 args = parser.parse_args()
 
