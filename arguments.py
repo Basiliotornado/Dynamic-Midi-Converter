@@ -21,6 +21,10 @@ parser.add_argument("-t",
                     type=int,
                     help="Number of midi tracks.",
                     default=31)
+parser.add_argument("-v",
+                    type=int,
+                    help="Minimum velocity cutoff.",
+                    default=0)
 parser.add_argument("--mult",
                     type=int,
                     help="How much to add to the multiplier when the minimum bin size is reached",
@@ -62,6 +66,7 @@ b = args.b
 m = args.m
 overlap = args.o
 tracks = args.t
+minimum_velocity = args.m
 multiplier = args.mult
 note_count = args.n
 threads = args.threads

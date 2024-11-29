@@ -182,10 +182,10 @@ if __name__ == "__main__":
             track = int(vel_l/(82/tracks)) + 1
             if track > tracks: track = tracks
 
-            if vel_l > 0:
+            if vel_l > minimum_velocity:
                 note_data[track].append({'velocity':vel_l, 'note': note, 'time': total_time})
                 note_data[track].append({'velocity':0,     'note': note, 'time': total_time + time})
-            if vel_r > 0:
+            if vel_r > minimum_velocity:
                 note_data[0].append({'velocity': vel_r, 'note': note, 'time': total_time})
                 note_data[0].append({'velocity': 0,     'note': note, 'time': total_time + time})
 
