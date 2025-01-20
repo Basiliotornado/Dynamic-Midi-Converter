@@ -6,7 +6,7 @@ parser.add_argument("i",
                     type=str,
                     help="File name ")
 parser.add_argument("-b",
-                    type=int,
+                    type=int,m
                     help="b in y = mx+b. Works like minimum bin size.",
                     default=128)
 parser.add_argument("-m",
@@ -66,7 +66,7 @@ b = args.b
 m = args.m
 overlap = args.o
 tracks = args.t
-minimum_velocity = args.m
+minimum_velocity = args.v
 multiplier = args.mult
 note_count = args.n
 threads = args.threads
