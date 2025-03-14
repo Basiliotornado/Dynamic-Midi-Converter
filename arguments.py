@@ -6,7 +6,7 @@ parser.add_argument("i",
                     type=str,
                     help="File name ")
 parser.add_argument("-b",
-                    type=int,m
+                    type=int,
                     help="b in y = mx+b. Works like minimum bin size.",
                     default=128)
 parser.add_argument("-m",
